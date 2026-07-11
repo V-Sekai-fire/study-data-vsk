@@ -14,9 +14,10 @@ httpx = "*"
 
 [tasks]
 ingest = "python src/ingest.py"
+ingest-manuals = "python src/manuals.py"
 normalize = "python src/normalize.py"
 study = "python src/study.py"
-all = { depends-on = ["ingest", "normalize", "study"] }
+all = { depends-on = ["ingest", "ingest-manuals", "normalize", "study"] }
 validate = "python src/normalize.py --validate-only"
 lake = "python src/lake_query.py"
-clean = "python -c \"import shutil,glob,os; [os.remove(p) for p in glob.glob('lake/*.parquet')]; print('cleaned lake/')\""
+clean = "python -c \"import glob,os; [os.remove(p) for p in glob.glob('lake/*.parquet')+glob.glob('raw/*.parquet')]; print('cleaned lake/ and raw/')\""
