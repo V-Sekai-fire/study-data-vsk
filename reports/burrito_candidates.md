@@ -1,6 +1,6 @@
 # V-Sekai — Burrito-ready candidates
 
-_Snapshot `2026-07-11T16:27:48Z` · 88 Elixir/C/C++/Python repos scored for how close they are to a shippable Elixir binary. Hexagonal read: domain core, an escript driving adapter, and a Burrito/hex.pm distribution adapter._
+_Snapshot `2026-07-11T17:19:47Z` · 88 Elixir/C/C++/Python repos scored for how close they are to a shippable Elixir binary. Hexagonal read: domain core, an escript driving adapter, and a Burrito/hex.pm distribution adapter._
 
 ## Chosen finish-today tasks
 
