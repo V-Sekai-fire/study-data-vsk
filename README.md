@@ -72,13 +72,34 @@ top of [`src/study.py`](src/study.py) — tune them to your taste and re-run `pi
 The report also lists **haunting decisions** — MADRs in the manuals repos still marked
 `proposed`/`draft`, i.e. documented intentions waiting to be finished and accepted.
 
+## The Burrito-readiness study
+
+"Which repo can I finish and ship as a downloadable binary?" is a repo-shape question, not an
+issue question, so `pixi run ingest-packaging` probes each Elixir/C/C++/Python repo's build
+manifest and `pixi run study-cli` ranks them by `burrito_readiness`. Three routes reach one
+distributable Elixir binary:
+
+- elixir — an escript / Mix release wrapped by Burrito (native).
+- c — a C/C++ CLI wrapped via a NIF/port, then Burrito.
+- python — a Python/ML app embedded via `pythonx`, distributed on hex.pm, then Burrito.
+
+The framing is hexagonal (ports and adapters): each repo is a domain **core**; the escript is
+the **driving adapter**; Burrito/hex.pm is the **distribution adapter**. A clean library core
+just needs a CLI port attached; a web/MCP service is a core on the wrong driving adapter. The
+probe also detects an Elixir/Unifex sub-project CLI (e.g. `cloth_fit_cli/`), so a C++ repo whose
+CLI already lives in an Elixir subdir is scored on the native route. See
+[`reports/burrito_candidates.md`](reports/burrito_candidates.md) for the ranked list and the
+chosen primary/fallback finish-today tasks.
+
 ## Layout
 
 ```
 src/ingest.py       GitHub API  -> raw/*.parquet
 src/manuals.py      manuals MADRs (tarball, in-memory) -> raw/decisions.parquet
+src/packaging.py    build manifests -> raw/packaging.parquet (Burrito-packaging shape)
 src/normalize.py    raw/ -> lake/*.parquet (ETNF) + integrity checks
-src/study.py        scoring -> lake/joy_scores.parquet + reports/finishable_tasks.md
+src/study.py        issue scoring -> lake/joy_scores.parquet + reports/finishable_tasks.md
+src/study_cli.py    repo scoring  -> lake/cli_readiness.parquet + reports/burrito_candidates.md
 src/lake_query.py   DuckDB sanity queries
 src/common.py       config, paths, auth, UUIDv5 key helpers
 ```

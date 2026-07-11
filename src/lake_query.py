@@ -29,6 +29,7 @@ def main() -> None:
     for name in [
         "orgs", "repos", "users", "issues", "labels", "issue_labels",
         "repo_topics", "decisions", "joy_scores", "snapshot",
+        "repo_packaging", "cli_readiness",
     ]:
         path = c.LAKE / f"{name}.parquet"
         if path.exists():
@@ -59,6 +60,13 @@ def main() -> None:
         SELECT COUNT(*) AS repos_one_from_zero
         FROM repos
         WHERE open_issues_count = 1 AND archived = false AND fork = false
+    """)
+
+    q(con, """
+        SELECT cr.rank, r.full_name, cr.route, cr.burrito_readiness
+        FROM cli_readiness cr JOIN repos r USING (repo_uuid)
+        ORDER BY cr.rank
+        LIMIT 8
     """)
 
 

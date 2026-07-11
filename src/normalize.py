@@ -202,6 +202,40 @@ def build_decisions() -> pl.DataFrame:
     return pl.DataFrame(rows, schema=schema)
 
 
+def build_repo_packaging() -> pl.DataFrame:
+    """Burrito-packaging shape per Elixir/C/C++/Python repo (raw/packaging.parquet).
+
+    Entity relation, PK decision by repo_uuid; FK -> repos. 1:1 subset of repos.
+    Absent if `pixi run ingest-packaging` has not run.
+    """
+    path = c.RAW / "packaging.parquet"
+    schema = {
+        "repo_uuid": pl.Utf8, "full_name": pl.Utf8, "language": pl.Utf8, "route": pl.Utf8,
+        "manifest": pl.Utf8, "has_manifest": pl.Boolean, "is_cli": pl.Boolean,
+        "cli_evidence": pl.Utf8, "has_elixir_subcli": pl.Boolean, "subcli_dir": pl.Utf8,
+        "has_unifex": pl.Boolean, "is_ml": pl.Boolean, "is_web": pl.Boolean,
+        "is_server": pl.Boolean, "has_burrito": pl.Boolean, "entry": pl.Utf8,
+        "description": pl.Utf8,
+    }
+    if not path.exists():
+        return pl.DataFrame(schema=schema)
+    raw = pl.read_parquet(path)
+    rows = [
+        {
+            "repo_uuid": c.repo_uuid(r["repo_full_name"]),
+            "full_name": r["repo_full_name"],
+            "language": r["language"], "route": r["route"], "manifest": r["manifest"],
+            "has_manifest": r["has_manifest"], "is_cli": r["is_cli"],
+            "cli_evidence": r["cli_evidence"], "has_elixir_subcli": r["has_elixir_subcli"],
+            "subcli_dir": r["subcli_dir"], "has_unifex": r["has_unifex"], "is_ml": r["is_ml"],
+            "is_web": r["is_web"], "is_server": r["is_server"], "has_burrito": r["has_burrito"],
+            "entry": r["entry"], "description": r["description"],
+        }
+        for r in raw.to_dicts()
+    ]
+    return pl.DataFrame(rows, schema=schema)
+
+
 def build_repo_topics(repos_raw: list[dict]) -> pl.DataFrame:
     rows = []
     for r in repos_raw:
@@ -253,12 +287,15 @@ def validate(tables: dict[str, pl.DataFrame]) -> list[str]:
     if "decisions" in tables:
         errs += _check_pk(tables["decisions"], ["decision_uuid"], "decisions")
         errs += _check_fk(tables["decisions"], "repo_uuid", tables["repos"], "repo_uuid", "decisions")
+    if "repo_packaging" in tables:
+        errs += _check_pk(tables["repo_packaging"], ["repo_uuid"], "repo_packaging")
+        errs += _check_fk(tables["repo_packaging"], "repo_uuid", tables["repos"], "repo_uuid", "repo_packaging")
     return errs
 
 
 def _load_lake() -> dict[str, pl.DataFrame]:
     names = ["orgs", "repos", "users", "issues", "labels", "issue_labels",
-             "repo_topics", "decisions"]
+             "repo_topics", "decisions", "repo_packaging"]
     return {
         n: pl.read_parquet(c.LAKE / f"{n}.parquet")
         for n in names
@@ -299,6 +336,7 @@ def main() -> None:
             "issue_labels": issue_labels_df,
             "repo_topics": build_repo_topics(repos_raw),
             "decisions": build_decisions(),
+            "repo_packaging": build_repo_packaging(),
         }
         for name, df in tables.items():
             df.write_parquet(c.LAKE / f"{name}.parquet")

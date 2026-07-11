@@ -20,41 +20,84 @@ snapshot_uuid = uuid5(NS, "snapshot:" + captured_at)
 
 ```mermaid
 erDiagram
-    ORGS      ||--o{ REPOS       : owns
-    REPOS     ||--o{ ISSUES      : has
-    REPOS     ||--o{ LABELS      : defines
-    REPOS     ||--o{ DECISIONS   : records
-    REPOS     ||--o{ REPO_TOPICS : tagged
-    USERS     ||--o{ ISSUES      : authored
-    ISSUES    ||--o{ ISSUE_LABELS : ""
-    LABELS    ||--o{ ISSUE_LABELS : ""
-    ISSUES    ||--|| JOY_SCORES  : scored
+    ORGS ||--o{ REPOS : owns
+    REPOS ||--o{ ISSUES : has
+    REPOS ||--o{ LABELS : defines
+    REPOS ||--o{ DECISIONS : records
+    REPOS ||--o{ REPO_TOPICS : tagged
+    REPOS ||--o| REPO_PACKAGING : "packaged as"
+    REPOS ||--o| CLI_READINESS : "cli-scored"
+    USERS ||--o{ ISSUES : authored
+    ISSUES ||--o{ ISSUE_LABELS : labelled
+    LABELS ||--o{ ISSUE_LABELS : applies
+    ISSUES ||--|| JOY_SCORES : scored
 
-    ORGS         { string org_uuid PK  string org_login "alt" }
-    REPOS        { string repo_uuid PK  string org_uuid FK  string full_name "alt" }
-    USERS        { string user_uuid PK  string user_login "alt" }
-    ISSUES       { string issue_uuid PK  string repo_uuid FK  string author_uuid FK }
-    LABELS       { string label_uuid PK  string repo_uuid FK }
-    DECISIONS    { string decision_uuid PK  string repo_uuid FK  string status }
-    ISSUE_LABELS { string issue_uuid PK  string label_uuid PK }
-    REPO_TOPICS  { string repo_uuid PK  string topic PK }
-    JOY_SCORES   { string issue_uuid PK  int total_score }
+    ORGS {
+        string org_uuid PK
+        string org_login
+    }
+    REPOS {
+        string repo_uuid PK
+        string org_uuid FK
+        string full_name
+    }
+    USERS {
+        string user_uuid PK
+        string user_login
+    }
+    ISSUES {
+        string issue_uuid PK
+        string repo_uuid FK
+        string author_uuid FK
+    }
+    LABELS {
+        string label_uuid PK
+        string repo_uuid FK
+    }
+    DECISIONS {
+        string decision_uuid PK
+        string repo_uuid FK
+        string status
+    }
+    ISSUE_LABELS {
+        string issue_uuid PK
+        string label_uuid PK
+    }
+    REPO_TOPICS {
+        string repo_uuid PK
+        string topic PK
+    }
+    JOY_SCORES {
+        string issue_uuid PK
+        int total_score
+    }
+    REPO_PACKAGING {
+        string repo_uuid PK
+        string route
+        bool is_cli
+    }
+    CLI_READINESS {
+        string repo_uuid PK
+        int burrito_readiness
+    }
 ```
 
 ## Tables
 
-| Table          | Key                         | Notes                                                                                                                                      |
-| -------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `snapshot`     | `snapshot_uuid`             | one row: capture time, orgs, query, tool versions (provenance)                                                                             |
-| `orgs`         | `org_uuid`                  | + `org_login` (alt key), name, public_repos, created_at                                                                                    |
-| `repos`        | `repo_uuid`                 | + `full_name` (alt key), `org_uuid` FK, stars, archived, fork, open_issues_count, language, pushed_at, …                                   |
-| `users`        | `user_uuid`                 | + `user_login` (alt key), user_type                                                                                                        |
-| `issues`       | `issue_uuid`                | `repo_uuid` FK, `author_uuid` FK, number, title, state, comments, created_at, body_len, html_url — **no** full_name (repo_uuid-determined) |
-| `labels`       | `label_uuid`                | `repo_uuid` FK, name, color, description                                                                                                   |
-| `decisions`    | `decision_uuid`             | `repo_uuid` FK, path, title, date, **status**, tier — MADRs from the manuals repos                                                         |
-| `issue_labels` | (`issue_uuid`,`label_uuid`) | all-key junction                                                                                                                           |
-| `repo_topics`  | (`repo_uuid`,`topic`)       | all-key junction                                                                                                                           |
-| `joy_scores`   | `issue_uuid`                | derived: finishability, haunting, doability, total_score, rank, reasons                                                                    |
+| Table            | Key                         | Notes                                                                                                                                      |
+| ---------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `snapshot`       | `snapshot_uuid`             | one row: capture time, orgs, query, tool versions (provenance)                                                                             |
+| `orgs`           | `org_uuid`                  | + `org_login` (alt key), name, public_repos, created_at                                                                                    |
+| `repos`          | `repo_uuid`                 | + `full_name` (alt key), `org_uuid` FK, stars, archived, fork, open_issues_count, language, pushed_at, …                                   |
+| `users`          | `user_uuid`                 | + `user_login` (alt key), user_type                                                                                                        |
+| `issues`         | `issue_uuid`                | `repo_uuid` FK, `author_uuid` FK, number, title, state, comments, created_at, body_len, html_url — **no** full_name (repo_uuid-determined) |
+| `labels`         | `label_uuid`                | `repo_uuid` FK, name, color, description                                                                                                   |
+| `decisions`      | `decision_uuid`             | `repo_uuid` FK, path, title, date, **status**, tier — MADRs from the manuals repos                                                         |
+| `issue_labels`   | (`issue_uuid`,`label_uuid`) | all-key junction                                                                                                                           |
+| `repo_topics`    | (`repo_uuid`,`topic`)       | all-key junction                                                                                                                           |
+| `joy_scores`     | `issue_uuid`                | derived: finishability, haunting, doability, elixir, total_score, rank, reasons                                                            |
+| `repo_packaging` | `repo_uuid`                 | `repo_uuid` FK; route (elixir/c/python), is_cli, has_unifex, has_elixir_subcli, is_ml, is_web, has_burrito — Burrito-packaging shape       |
+| `cli_readiness`  | `repo_uuid`                 | derived: burrito_readiness score, route, rank, reasons                                                                                     |
 
 ## Why this is ETNF
 
@@ -74,12 +117,14 @@ a superkey. It removes the redundancy that join dependencies cause, without dema
    `labels`, `decisions`, `snapshot` each have candidate keys (the `*_uuid` and the retained
    natural key); every non-key attribute is fully functionally dependent on the whole key and
    on nothing else. With no nontrivial join dependency present, BCNF ⇒ ETNF trivially.
+   `repo_packaging` is a 1:1 subset of `repos` (one row per Elixir/C/C++/Python repo probed),
+   keyed by `repo_uuid`, and follows the same argument.
 
 3. No transitive or derived attribute is stored redundantly. `issues` carries only `repo_uuid`
    (not `full_name` or org), because `repo_uuid → full_name → org_uuid` already holds in
    `repos`. Storing `full_name` on `issues` would be a redundant transitive dependency; it is
-   obtained by join instead. `joy_scores` is a 1:1 derived extension of `issues`, keyed by
-   `issue_uuid`.
+   obtained by join instead. `joy_scores` (keyed by `issue_uuid`) and `cli_readiness` (keyed by
+   `repo_uuid`) are 1:1 derived extensions of `issues` and `repos` respectively.
 
 Integrity is enforced on every build (`normalize.py`): each PK is checked unique and every FK
 is checked to resolve into its parent (no orphans).
