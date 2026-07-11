@@ -1,0 +1,22 @@
+[workspace]
+name = "study-data-vsk"
+description = "Reproducible parquet datalake (ETNF) of the V-Sekai GitHub orgs, used to surface finish-it-today tasks."
+channels = ["conda-forge"]
+platforms = ["win-64", "linux-64"]
+
+[dependencies]
+python = "3.12.*"
+polars = "*"
+pyarrow = "*"
+duckdb = "*"
+python-duckdb = "*"
+httpx = "*"
+
+[tasks]
+ingest = "python src/ingest.py"
+normalize = "python src/normalize.py"
+study = "python src/study.py"
+all = { depends-on = ["ingest", "normalize", "study"] }
+validate = "python src/normalize.py --validate-only"
+lake = "python src/lake_query.py"
+clean = "python -c \"import shutil,glob,os; [os.remove(p) for p in glob.glob('lake/*.parquet')]; print('cleaned lake/')\""

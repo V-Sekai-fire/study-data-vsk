@@ -1,0 +1,11 @@
+# Regenerable raw API snapshots (re-create with `pixi run ingest`)
+raw/
+
+# pixi environment
+.pixi/
+
+# python
+__pycache__/
+*.pyc
+
+# lake/ IS committed — it is the study artifact.
